@@ -7,8 +7,10 @@ import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.os.Handler
 import android.view.Display
+import android.view.WindowManager
 import android.widget.RelativeLayout
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
@@ -126,6 +128,7 @@ class LayoutEditorActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         handler = Handler(mainLooper)
 
@@ -137,6 +140,7 @@ class LayoutEditorActivity : AppCompatActivity() {
         }
         container.addView(layoutEditorManager, RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT)
         setContentView(container)
+        /*
         ViewCompat.setOnApplyWindowInsetsListener(container) { view, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
             view.setPadding(
@@ -148,6 +152,8 @@ class LayoutEditorActivity : AppCompatActivity() {
 
             WindowInsetsCompat.CONSUMED
         }
+
+         */
 
         onBackPressedDispatcher.addCallback(object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -309,8 +315,11 @@ class LayoutEditorActivity : AppCompatActivity() {
     }
 
     private fun setupFullscreen() {
+        window.attributes.layoutInDisplayCutoutMode =
+            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+
         window.insetsControllerCompat?.let {
-            it.hide(WindowInsetsCompat.Type.navigationBars())
+            it.hide(WindowInsetsCompat.Type.systemBars())
             it.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }

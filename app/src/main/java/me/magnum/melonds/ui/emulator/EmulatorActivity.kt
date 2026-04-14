@@ -17,6 +17,7 @@ import android.view.WindowManager
 import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -278,6 +279,7 @@ class EmulatorActivity : AppCompatActivity() {
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         handler = Handler(mainLooper)
         lifecycleOwnerProvider.setCurrentLifecycleOwner(this)
@@ -285,6 +287,7 @@ class EmulatorActivity : AppCompatActivity() {
         supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(binding.root)
         setupFullscreen()
+        /*
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
             view.setPadding(
@@ -296,6 +299,7 @@ class EmulatorActivity : AppCompatActivity() {
 
             WindowInsetsCompat.CONSUMED
         }
+        */
 
         onBackPressedDispatcher.addCallback(backPressedCallback)
 
@@ -698,8 +702,11 @@ class EmulatorActivity : AppCompatActivity() {
     }
 
     private fun setupFullscreen() {
+        window.attributes.layoutInDisplayCutoutMode =
+            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+
         window.insetsControllerCompat?.let {
-            it.hide(WindowInsetsCompat.Type.navigationBars())
+            it.hide(WindowInsetsCompat.Type.systemBars())
             it.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
