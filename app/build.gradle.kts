@@ -26,7 +26,7 @@ android {
     ndkVersion = AppConfig.ndkVersion
     defaultConfig {
         applicationId = "me.magnum.melonds"
-        minSdk = 28
+        minSdk = AppConfig.minSdkVersion
         targetSdk = AppConfig.targetSdkVersion
         versionCode = AppConfig.versionCode
         versionName = AppConfig.versionName
