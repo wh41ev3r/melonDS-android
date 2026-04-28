@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -115,6 +117,8 @@ class EmulatorViewModel @Inject constructor(
 
     private val _layout = MutableStateFlow<LayoutConfiguration?>(null)
 
+    private val _currentLayout = uiLayoutProvider.currentLayout.shareIn(viewModelScope, SharingStarted.Lazily)
+
     private val _runtimeLayout = MutableStateFlow<RuntimeInputLayoutConfiguration?>(null)
     val runtimeLayout = _runtimeLayout.asStateFlow()
 
@@ -171,12 +175,24 @@ class EmulatorViewModel @Inject constructor(
         launchEmulator(args)
     }
 
+    fun onRomLaunchValidated(rom: Rom) {
+        viewModelScope.launch {
+            launchRom(rom)
+        }
+    }
+
+    fun onFirmwareLaunchValidated(consoleType: ConsoleType) {
+        viewModelScope.launch {
+            launchFirmware(consoleType)
+        }
+    }
+
     private fun launchEmulator(args: LaunchArgs) {
         when (args) {
             is LaunchArgs.RomObject -> loadRom(args.rom)
             is LaunchArgs.RomUri -> loadRom(args.uri)
             is LaunchArgs.RomPath -> loadRom(args.path)
-            is LaunchArgs.Firmware -> loadFirmware(args.consoleType)
+            is LaunchArgs.Firmware -> _emulatorState.value = EmulatorState.ValidatingFirmware(args.consoleType)
         }
     }
 
@@ -184,7 +200,7 @@ class EmulatorViewModel @Inject constructor(
         viewModelScope.launch {
             resetEmulatorState(EmulatorState.LoadingRom)
             sessionCoroutineScope.launch {
-                launchRom(rom)
+                _emulatorState.value = EmulatorState.ValidatingRom(rom)
             }
         }
     }
@@ -195,7 +211,7 @@ class EmulatorViewModel @Inject constructor(
             sessionCoroutineScope.launch {
                 val rom = romsRepository.getRomAtUri(romUri)
                 if (rom != null) {
-                    launchRom(rom)
+                    _emulatorState.value = EmulatorState.ValidatingRom(rom)
                 } else {
                     _emulatorState.value = EmulatorState.RomNotFoundError(romUri.toString())
                 }
@@ -209,7 +225,7 @@ class EmulatorViewModel @Inject constructor(
             sessionCoroutineScope.launch {
                 val rom = romsRepository.getRomAtPath(romPath)
                 if (rom != null) {
-                    launchRom(rom)
+                    _emulatorState.value = EmulatorState.ValidatingRom(rom)
                 } else {
                     _emulatorState.value = EmulatorState.RomNotFoundError(romPath)
                 }
@@ -232,6 +248,7 @@ class EmulatorViewModel @Inject constructor(
         val result = emulatorManager.loadRom(rom, cheats)
         when (result) {
             is RomLaunchResult.LaunchFailedRomNotFound,
+            is RomLaunchResult.LaunchFailedRomNotSupported,
             is RomLaunchResult.LaunchFailedSramProblem,
             is RomLaunchResult.LaunchFailed -> {
                 _emulatorState.value = EmulatorState.RomLoadError
@@ -247,7 +264,7 @@ class EmulatorViewModel @Inject constructor(
         }
     }
 
-    private fun loadFirmware(consoleType: ConsoleType) {
+    private fun launchFirmware(consoleType: ConsoleType) {
         viewModelScope.launch {
             resetEmulatorState(EmulatorState.LoadingFirmware)
             startEmulatorSession(EmulatorSession.SessionType.FirmwareSession(consoleType))
@@ -574,7 +591,7 @@ class EmulatorViewModel @Inject constructor(
         sessionCoroutineScope.launch {
             combine(
                 _layout,
-                uiLayoutProvider.currentLayout,
+                _currentLayout,
                 settingsRepository.getSoftInputBehaviour(),
                 settingsRepository.isTouchHapticFeedbackEnabled(),
                 settingsRepository.getSoftInputOpacity(),
@@ -650,7 +667,7 @@ class EmulatorViewModel @Inject constructor(
 
     private fun startObservingMainScreenBackground() {
         sessionCoroutineScope.launch {
-            combine(uiLayoutProvider.currentLayout, ensureEmulatorIsRunning()) { variant, _ ->
+            combine(_currentLayout, ensureEmulatorIsRunning()) { variant, _ ->
                 val layout = variant?.second
                 if (layout == null) {
                     RuntimeBackground.None
@@ -663,7 +680,7 @@ class EmulatorViewModel @Inject constructor(
 
     private fun startObservingSecondaryScreenBackground() {
         sessionCoroutineScope.launch {
-            combine(uiLayoutProvider.currentLayout, ensureEmulatorIsRunning()) { variant, _ ->
+            combine(_currentLayout, ensureEmulatorIsRunning()) { variant, _ ->
                 val layout = variant?.second
                 if (layout == null) {
                     RuntimeBackground.None
